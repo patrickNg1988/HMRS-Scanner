@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QR Clock In</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family:sans-serif; text-align:center; padding:20px;">
+  <h2>Scan QR to Clock In</h2>
+  <div id="reader" style="width:300px; margin:auto;"></div>
+  <p id="result" style="font-weight:bold;"></p>
+
+  <script>
+    function showMessage(text, success = true) {
+      const result = document.getElementById('result');
+      result.style.color = success ? 'green' : 'red';
+      result.innerText = text;
+    }
+
+    async function handleScan(decodedText) {
+      try {
+        const data = JSON.parse(decodedText);
+        const userId = data.userId;
+
+        if (!userId) throw new Error("Invalid QR");
+
+        // Get GPS
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          // Send to backend
+          const res = await fetch('https://03d7eb39-769e-4eb8-83c3-673c0e33218a-00-2rrdy6u7uvcdp.sisko.replit.dev/api/attendance/clock-in', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer SCANMODE-' + userId
+            },
+            body: JSON.stringify({ lat, lng })
+          });
+
+          const response = await res.json();
+          showMessage(response.msg || 'Success', res.ok);
+        }, () => {
+          showMessage('GPS error. Please allow location access.', false);
+        });
+
+      } catch (e) {
+        showMessage('❌ Invalid QR code', false);
+      }
+
+      html5QrcodeScanner.clear();
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
+      qrbox: 250
+    });
+    html5QrcodeScanner.render(handleScan);
+  </script>
+</body>
+</html>
